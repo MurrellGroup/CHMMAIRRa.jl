@@ -1,0 +1,3 @@
+sequence_id	v_call	v_sequence_alignment	v_germline_alignment
+seq1	ref2	ACGTACACCAGGAT	ACCACCACCA--AT
+seq2	ref2	ACCACCACCAGT	ACCACCACCAAT

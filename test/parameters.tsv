@@ -1,0 +1,4 @@
+method	DB
+mutation_probabilities	0.1,0.2
+base_mutation_probability	0.05
+prior_probability	0.05

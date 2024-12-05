@@ -1,0 +1,4 @@
+method	BW
+mutation_probabilities	-1
+base_mutation_probability	0.05
+prior_probability	0.05
