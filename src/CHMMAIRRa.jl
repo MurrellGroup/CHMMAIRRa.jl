@@ -130,7 +130,7 @@ REQUIRED_COLUMNS_TYPES = Dict("sequence_id" => String, "v_call" => String, "v_se
             quiet::Bool = false,
             disable_internal_dedup::Bool = false
             )
-Run CHMMAIRRa from input files to writing of output files, taking care of I/O. 
+Run CHMMAIRRa from input files to writing of output files, taking care of I/O.
 
 # Arguments:
 - `V_fasta::String`: V database in fasta format.
@@ -180,7 +180,7 @@ function detect_chimeras_from_files(V_fasta::String, assignments::String, out::S
             quiet::Bool = false,
             disable_internal_dedup::Bool = false
             )
-    
+
     if quiet
         disable_logging(LogLevel(10))
     end
@@ -357,10 +357,10 @@ end
 
 
 
-Run CHMMAIRRa on parsed arguments, returning output as a Tuple containing relevant outputs. 
+Run CHMMAIRRa on parsed arguments, returning output as a Tuple containing relevant outputs.
 Output tuple fields:
 1. out: the input assignments dataframe with chimerism probabilities.
-2. chimeric_alignments: names and sequences for alignments showing which reference sequences recombined at which positions to form detected chimeras. Set to nothing if chimeric_alignments is false. 
+2. chimeric_alignments: names and sequences for alignments showing which reference sequences recombined at which positions to form detected chimeras. Set to nothing if chimeric_alignments is false.
 3. recombfreqplot: barplot of most frequent recombinations, normalized by their expected frequencies. Set to nothing if recombfreqplot is false.
 
 # Arguments:
@@ -421,7 +421,7 @@ function detect_chimeras(refnames::Vector{String}, refseqs::Vector{String}, assi
         chimeric_alignments = nothing,
         recombfreqplot = nothing
     )
-                
+
     # align the database if the length of the sequences is not the same
     if align_database  | (length(unique(length.(refseqs))) != 1)
         @info "Aligning V database sequences using mafft"
@@ -436,7 +436,7 @@ function detect_chimeras(refnames::Vector{String}, refseqs::Vector{String}, assi
     elseif isnothing(HMM_parameters)
         error(string("Invalid receptor ", receptor, ". Receptor must be either IG or TCR."))
     end
- 
+
     # check for missing values in required columns
     to_remove = ismissing.(assignments.v_call) .| ismissing.(assignments.v_sequence_alignment) .| ismissing.(assignments.v_germline_alignment)
     req_str = join(REQUIRED_COLUMNS, ", ")
@@ -524,7 +524,7 @@ function detect_chimeras(refnames::Vector{String}, refseqs::Vector{String}, assi
     if ! isnothing(recombfreqplot)
         chimeras_per_recombination = get_chimerism_per_recombination(assignments)
         p = plot_chimerism_per_recombination(chimeras_per_recombination)
-        output = merge(output, (recombfreqplot = p,)) 
+        output = merge(output, (recombfreqplot = p,))
     end
 
     output = merge(output, (out = assignments,))
@@ -538,7 +538,7 @@ Entry point C call for main function for Julia
 """
 function julia_main()::Cint
     parsed_args = parse_commandline()
-    
+
     if parsed_args["quiet"]
         disable_logging(LogLevel(10))
     end
@@ -569,7 +569,8 @@ function julia_main()::Cint
             trim = parsed_args["trim"],
             seed = parsed_args["seed"],
 
-            quiet = parsed_args["quiet"]
+            quiet = parsed_args["quiet"],
+            disable_internal_dedup = parsed_args["disable-internal-dedup"]
             )
     return 0
 end
