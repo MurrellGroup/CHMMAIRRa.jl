@@ -57,6 +57,11 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            arch: x86-64
+          - os: macos-latest
+            arch: aarch64
 
     steps:
     - name: Checkout repository
@@ -74,7 +79,7 @@ jobs:
       run: julia -e 'using Pkg; Pkg.add("PackageCompiler")'
 
     - name: Build executable
-      run: julia -e 'using PackageCompiler; create_app(".", "CHMMAIRRa_${{ matrix.os }}_x86-64_${{ github.ref_name }}", include_transitive_dependencies=false, cpu_target = "x86-64")'
+      run: julia -e 'using PackageCompiler; create_app(".", "CHMMAIRRa_${{ matrix.os }}_x86-64_${{ github.ref_name }}", include_transitive_dependencies=false, cpu_target = "${{ matrix.arch }}")'
 
     - name: Zip the build
       run: zip -q -r CHMMAIRRa_${{ matrix.os }}_x86-64_${{ github.ref_name }}.zip CHMMAIRRa_${{ matrix.os }}_x86-64_${{ github.ref_name }}
