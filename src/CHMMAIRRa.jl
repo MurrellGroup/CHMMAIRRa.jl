@@ -1,6 +1,6 @@
 module CHMMAIRRa
 
-using CHMMera, ArgParse, CSV, DataFrames, Random, Logging, Requires, FASTX, Plots
+using CHMMera, ArgParse, CSV, DataFrames, FASTX, Logging, Plots, Random
 
 include("utils.jl")
 include("plots.jl")

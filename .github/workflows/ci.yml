@@ -74,10 +74,10 @@ jobs:
       run: julia -e 'using Pkg; Pkg.add("PackageCompiler")'
 
     - name: Build executable
-      run: julia -e 'using PackageCompiler; create_app(".", "CHMMAIRRa_${{ matrix.os }}")'
+      run: julia -e 'using PackageCompiler; create_app(".", "CHMMAIRRa_${{ matrix.os }}_x86-64_${{ github.ref_name }}", include_transitive_dependencies=false, cpu_target = "x86-64")'
 
     - name: Zip the build
-      run: zip -r CHMMAIRRa_${{ matrix.os }}.zip CHMMAIRRa_${{ matrix.os }}
+      run: zip -q -r CHMMAIRRa_${{ matrix.os }}_x86-64_${{ github.ref_name }}.zip CHMMAIRRa_${{ matrix.os }}_x86-64_${{ github.ref_name }}
 
     - name: Create Release
       id: create_release
@@ -97,6 +97,6 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: CHMMAIRRa_${{ matrix.os }}.zip
-        asset_name: CHMMAIRRa_${{ matrix.os }}.zip
+        asset_path: CHMMAIRRa_${{ matrix.os }}_x86-64_${{ github.ref_name }}.zip
+        asset_name: CHMMAIRRa_${{ matrix.os }}_x86-64_${{ github.ref_name }}.zip
         asset_content_type: application/zip
