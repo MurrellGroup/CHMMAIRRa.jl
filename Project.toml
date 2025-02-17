@@ -1,6 +1,6 @@
 name = "CHMMAIRRa"
 uuid = "d8677c85-7479-426e-842e-70dedf0c4b34"
-authors = ["Mark Chernyshev <mark26111@gmail.com>"]
+authors = ["Mark Chernyshev <mark26111@gmail.com> and contributors."]
 version = "0.0.1"
 
 [deps]

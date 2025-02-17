@@ -236,12 +236,12 @@ function detect_chimeras_from_files(V_fasta::String, assignments::String, out::S
         CSV.write(out, chmmairra_output.out[!,write_cols], delim = '\t', compress = is_gz_path(out))
 
         if ! isnothing(chimeric_MiAIRR)
-            chimeric_out = chmmairra_output.out[chmmairra_output.out.chimera_probability .>= p_threshold,:]
+            chimeric_out = chmmairra_output.out[chmmairra_output.out.chimeric,:]
             CSV.write(chimeric_MiAIRR, chimeric_out, delim = '\t', compress = is_gz_path(chimeric_MiAIRR))
         end
 
         if ! isnothing(non_chimeric_MiAIRR)
-            non_chimeric_out = chmmairra_output.out[chmmairra_output.outchimera_probability .< p_threshold,:]
+            non_chimeric_out = chmmairra_output.out[.! chmmairra_output.out.chimeric,:]
             CSV.write(non_chimeric_MiAIRR, non_chimeric_out, delim = '\t', compress = is_gz_path(non_chimeric_MiAIRR))
         end
 
@@ -303,12 +303,12 @@ function detect_chimeras_from_files(V_fasta::String, assignments::String, out::S
             CSV.write(out_s, chmmairra_output.out[!,write_cols], delim = '\t', append = true)
 
             if ! isnothing(chimeric_MiAIRR)
-                chimeric_out = chmmairra_output.out[chmmairra_output.out.chimera_probability .>= p_threshold,:]
+                chimeric_out = chmmairra_output.out[chmmairra_output.out.chimeric,:]
                 CSV.write(chimeric_s, chimeric_out, delim = '\t', append = true)
             end
 
             if ! isnothing(non_chimeric_MiAIRR)
-                non_chimeric_out = chmmairra_output.out[chmmairra_output.out.chimera_probability .< p_threshold,:]
+                non_chimeric_out = chmmairra_output.out[.! chmmairra_output.out.chimeric,:]
                 CSV.write(non_chimeric_s, non_chimeric_out, delim = '\t', append = true)
             end
 
@@ -521,7 +521,7 @@ function detect_chimeras(refnames::Vector{String}, refseqs::Vector{String}, assi
         output = merge(output, (chimeric_alignments = chimeric_alignments_obj,))
     end
 
-    if ! isnothing(recombfreqplot)
+    if recombfreqplot
         chimeras_per_recombination = get_chimerism_per_recombination(assignments)
         p = plot_chimerism_per_recombination(chimeras_per_recombination)
         output = merge(output, (recombfreqplot = p,))

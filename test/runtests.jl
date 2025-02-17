@@ -1,8 +1,10 @@
 using CHMMAIRRa, Test, DataFrames, CSV
 
 function compare_tsvs(file1::String, file2::String; columns::String = "all")
-    df1 = DataFrame(CSV.File(file1, delim = "\t", header = false))
-    df2 = DataFrame(CSV.File(file2, delim = "\t", header = false))
+    @info "Directory in compare_tsvs: $(pwd())"
+
+    df1 = CSV.read(file1, DataFrame, delim = "\t")
+    df2 = CSV.read(file2, DataFrame, delim = "\t")
     if columns == "intersection"
         columns = intersect(names(df1), names(df2))
     elseif columns == "all"
@@ -81,20 +83,18 @@ end
         CHMMAIRRa_out = CHMMAIRRa.detect_chimeras_from_files("V.fasta", "assignments.tsv", "CHMMAIRRa_out_temp.tsv",
                                     non_chimeric_MiAIRR = "non_chimeric_airr_temp.tsv",
                                     chimeric_MiAIRR = "chimeric_airr_temp.tsv",
-                                    chimeric_alignments = "chimeric_alignments_temp.tsv",
-                                    recombfreqplot = "recombfreqplot.pdf",
+                                    chimeric_alignments = "chimeric_alignments_temp.fasta",
                                     detailed = true,
                                     count_chimeric_segments = true)
-        compare_tsvs("CHMMAIRRA_out_temp.tsv", "CHMMAIRRA_out.tsv", columns = "all")
+        compare_tsvs("CHMMAIRRa_out_temp.tsv", "CHMMAIRRa_out.tsv", columns = "all")
 
         CHMMAIRRa.detect_chimeras_from_files("V.fasta", "assignments.tsv", "CHMMAIRRa_out_temp.tsv",
                                     non_chimeric_MiAIRR = "non_chimeric_airr_temp.tsv",
                                     chimeric_MiAIRR = "chimeric_airr_temp.tsv",
-                                    chimeric_alignments = "chimeric_alignments_temp.tsv",
-                                    recombfreqplot = "recombfreqplot.pdf",
+                                    chimeric_alignments = "chimeric_alignments_temp.fasta",
                                     detailed = true,
                                     chunk_size = 1)
         # count_chimeric_segments doesn't work with chunk_size, so we compare the columns in common between the files
-        compare_tsvs("CHMMAIRRA_out_temp.tsv", "CHMMAIRRA_out.tsv", columns = "intersection")
+        compare_tsvs("CHMMAIRRa_out_temp.tsv", "CHMMAIRRa_out.tsv", columns = "intersection")
     end
 end
