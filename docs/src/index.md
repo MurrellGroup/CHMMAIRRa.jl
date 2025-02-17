@@ -47,25 +47,24 @@ CHMMAIRRa --receptor IG --V-fasta V.fasta --assignments AIRR.tsv --out CHMMAIRRa
 ```
 
 
-# Mandatory arguments
-## Inputs
+# Arguments
+## Mandatory arguments
 1. ```--receptor``` : The receptor type, either ```IG``` or ```TCR```.
 2. ```--V-fasta``` : The database V sequences in FASTA format.
 3. ```--assignments``` : The VDJ assignments in MiAIRR format. Must have been assigned to the ```--V-fasta``` database.
-## Outputs
-1. ```--out``` : The output file path. See [CHMMAIRRa output columns](#chmmairra-output-columns) for more details.
+4. ```--out``` : The output file path. See [CHMMAIRRa output columns](#chmmairra-output-columns) for more details.
 
-# Optional arguments
-## Output options
+## Optional arguments
+### Output options
 1. ```--detailed``` : Whether to output detailed information about the recombination path. See [CHMMAIRRa output columns](#chmmairra-output-columns) for more details.
 2. ```--non-chimeric-MiAIRR``` : The output file path for non-chimeric sequences, including all columns from the input file.
 3. ```--chimeric-MiAIRR``` : The output file path for chimeric sequences, including all columns from the input file.
 
-## Extra outputs
+### Extra outputs
 1. ```--recombfreqplot``` : A plot of chimerism per recombination event, normalized by allele frequency. Can be useful for identifying missing database sequences.
 2. ```--chimeric-alignments``` : Fasta file containing chimeric sequences and the germline alignments they matched to. This also provides a hamming_distances column in the chimeric assignments file.
 
-## Technical parameters
+### Technical parameters
 1. ```--p-threshold``` : Posterior threshold of switching templates (default: 0.95).
 2. ```--HMM-parameters``` : If set, use HMM parameters in this file. Overrides parameter presets from --receptor. See src/IG_parameters.tsv or src/TCR_parameters.tsv for formatting.
 3. ```--mafft``` : The path to the MAFFT executable. Automatically found if not provided.
@@ -78,13 +77,13 @@ CHMMAIRRa --receptor IG --V-fasta V.fasta --assignments AIRR.tsv --out CHMMAIRRa
 10. ```--seed``` : Seed to use for random subsampling.
 11. ```--quiet``` : Whether to suppress non-error messages.
 
-## CHMMAIRRa output columns
-### Mandatory columns
+# CHMMAIRRa output columns
+## Mandatory columns
 - ```threaded``` : The query V sequence threaded onto the database alignment.
 - ```chimera_probability``` : The probability of the V sequence being a chimera.
 - ```chimeric``` : Whether the V sequence is chimeric.
 
-### Optional columns generated when using the ```--detailed``` arg
+## Optional columns generated when using the ```--detailed``` arg
 - ```startingpoint``` : The nonchimeric starting state of the viterbi path (i.e. the HMM's v_call).
 - ```recombinations``` : A list of recombination points according to the viterbi path of the query. Format: (v_call 1, v_call 2, recombination position in threaded query sequence).
 - ```recombinations_degapped``` : Same as recombinations, but with the non-gapped position of the recombination.
