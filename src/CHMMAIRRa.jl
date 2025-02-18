@@ -1,9 +1,13 @@
 module CHMMAIRRa
 
-using CHMMera, ArgParse, CSV, DataFrames, FASTX, Logging, Plots, Random
+using CHMMera, ArgParse, CSV, DataFrames, FASTX, Logging, Random, Requires
 
+# declare so we can override it in the extension
 include("utils.jl")
-include("plots.jl")
+include("plot.jl")
+
+
+
 function parse_commandline()
     s = ArgParseSettings()
     @add_arg_table s begin
@@ -245,9 +249,14 @@ function detect_chimeras_from_files(V_fasta::String, assignments::String, out::S
             CSV.write(non_chimeric_MiAIRR, non_chimeric_out, delim = '\t', compress = is_gz_path(non_chimeric_MiAIRR))
         end
 
-        if ! isnothing(recombfreqplot)
-            savefig(chmmairra_output.recombfreqplot, recombfreqplot)
+
+
+        if typeof(chmmairra_output.recombfreqplot) == Vector{Vector{Char}}
+            write_recombfreqplot(chmmairra_output.recombfreqplot, recombfreqplot)
+        elseif ! isnothing(chmmairra_output.recombfreqplot)
+            Base.get_extension(CHMMAIRRa, :PlotExt).my_savefig(chmmairra_output.recombfreqplot, recombfreqplot)
         end
+
     # read input and write output one chunk at a time
     else
         # delete files where we are trying to write to and open IO streams as needed
@@ -351,7 +360,7 @@ end
                     )::NamedTuple{(:out, :chimeric_alignments, :recombfreqplot),
                                 Tuple{DataFrame,
                                 Union{Nothing, Tuple{Vector{String}, Vector{String}}},
-                                Union{Nothing, Plots.Plot}
+                                Any}
                                 }
                     }
 
@@ -407,7 +416,7 @@ function detect_chimeras(refnames::Vector{String}, refseqs::Vector{String}, assi
                     )::NamedTuple{(:out, :chimeric_alignments, :recombfreqplot),
                                 Tuple{DataFrame,
                                 Union{Nothing, Tuple{Vector{String}, Vector{String}}},
-                                Union{Nothing, Plots.Plot}
+                                Any
                                 }
                     }
 
