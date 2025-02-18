@@ -53,6 +53,7 @@ jobs:
           fail_ci_if_error: false
 
   build:
+    if: github.event_name == 'release' && github.event.action == 'created'
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -79,29 +80,17 @@ jobs:
       run: julia -e 'using Pkg; Pkg.add("PackageCompiler")'
 
     - name: Build executable
-      run: julia -e 'using PackageCompiler; create_app(".", "CHMMAIRRa_${{ matrix.os }}_x86-64_${{ github.ref_name }}", include_transitive_dependencies=false, cpu_target = "${{ matrix.arch }}")'
+      run: julia -e 'using PackageCompiler; create_app(".", "CHMMAIRRa_${{ matrix.os }}_${{ matrix.arch }}_${{ github.ref_name }}", include_transitive_dependencies=false, cpu_target = "${{ matrix.arch }}")'
 
     - name: Zip the build
-      run: zip -q -r CHMMAIRRa_${{ matrix.os }}_x86-64_${{ github.ref_name }}.zip CHMMAIRRa_${{ matrix.os }}_x86-64_${{ github.ref_name }}
-
-    - name: Create Release
-      id: create_release
-      if: ${{ matrix.os == 'ubuntu-latest' }}
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: ${{ github.ref }}
-        release_name: Release ${{ github.ref }}
-        draft: false
-        prerelease: false
+      run: zip -q -r CHMMAIRRa_${{ matrix.os }}_${{ matrix.arch }}_${{ github.ref_name }}.zip CHMMAIRRa_${{ matrix.os }}_${{ matrix.arch }}_${{ github.ref_name }}
 
     - name: Upload Release Asset
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: CHMMAIRRa_${{ matrix.os }}_x86-64_${{ github.ref_name }}.zip
-        asset_name: CHMMAIRRa_${{ matrix.os }}_x86-64_${{ github.ref_name }}.zip
+        upload_url: ${{ github.event.release.upload_url }}
+        asset_path: CHMMAIRRa_${{ matrix.os }}_${{ matrix.arch }}_${{ github.ref_name }}.zip
+        asset_name: CHMMAIRRa_${{ matrix.os }}_${{ matrix.arch }}_${{ github.ref_name }}.zip
         asset_content_type: application/zip
