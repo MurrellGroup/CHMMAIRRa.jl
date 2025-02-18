@@ -61,7 +61,7 @@ jobs:
           - os: ubuntu-latest
             arch: x86-64
           - os: macos-latest
-            arch: aarch64
+            arch: native
 
     steps:
     - name: Checkout repository
