@@ -52,45 +52,45 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
 
-  build:
-    if: github.event_name == 'release' && github.event.action == 'created'
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-        include:
-          - os: ubuntu-latest
-            arch: x86-64
-          - os: macos-latest
-            arch: native
-
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v3
-
-    - name: Set up Julia
-      uses: julia-actions/setup-julia@v1
-      with:
-        version: '1.10.5'
-
-    - name: Install dependencies
-      run: julia -e 'using Pkg; Pkg.instantiate()'
-
-    - name: Install PackageCompiler
-      run: julia -e 'using Pkg; Pkg.add("PackageCompiler")'
-
-    - name: Build executable
-      run: julia -e 'using PackageCompiler; create_app(".", "CHMMAIRRa_${{ matrix.os }}_${{ matrix.arch }}_${{ github.ref_name }}", include_transitive_dependencies=false, cpu_target = "${{ matrix.arch }}")'
-
-    - name: Zip the build
-      run: zip -q -r CHMMAIRRa_${{ matrix.os }}_${{ matrix.arch }}_${{ github.ref_name }}.zip CHMMAIRRa_${{ matrix.os }}_${{ matrix.arch }}_${{ github.ref_name }}
-
-    - name: Upload Release Asset
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ github.event.release.upload_url }}
-        asset_path: CHMMAIRRa_${{ matrix.os }}_${{ matrix.arch }}_${{ github.ref_name }}.zip
-        asset_name: CHMMAIRRa_${{ matrix.os }}_${{ matrix.arch }}_${{ github.ref_name }}.zip
-        asset_content_type: application/zip
+#  build:
+#    if: github.event_name == 'release' && github.event.action == 'created'
+#    runs-on: ${{ matrix.os }}
+#    strategy:
+#      matrix:
+#        os: [ubuntu-latest, macos-latest]
+#        include:
+#          - os: ubuntu-latest
+#            arch: x86-64
+#          - os: macos-latest
+#            arch: native
+#
+#    steps:
+#    - name: Checkout repository
+#      uses: actions/checkout@v3
+#
+#    - name: Set up Julia
+#      uses: julia-actions/setup-julia@v1
+#      with:
+#        version: '1.10.5'
+#
+#    - name: Install dependencies
+#      run: julia -e 'using Pkg; Pkg.instantiate()'
+#
+#    - name: Install PackageCompiler
+#      run: julia -e 'using Pkg; Pkg.add("PackageCompiler")'
+#
+#    - name: Build executable
+#      run: julia -e 'using PackageCompiler; create_app(".", "CHMMAIRRa_${{ matrix.os }}_${{ matrix.arch }}_${{ github.ref_name }}", include_transitive_dependencies=false, cpu_target = "${{ matrix.arch }}")'
+#
+#    - name: Zip the build
+#      run: zip -q -r CHMMAIRRa_${{ matrix.os }}_${{ matrix.arch }}_${{ github.ref_name }}.zip CHMMAIRRa_${{ matrix.os }}_${{ matrix.arch }}_${{ github.ref_name }}
+#
+#    - name: Upload Release Asset
+#      uses: actions/upload-release-asset@v1
+#      env:
+#        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#      with:
+#        upload_url: ${{ github.event.release.upload_url }}
+#        asset_path: CHMMAIRRa_${{ matrix.os }}_${{ matrix.arch }}_${{ github.ref_name }}.zip
+#        asset_name: CHMMAIRRa_${{ matrix.os }}_${{ matrix.arch }}_${{ github.ref_name }}.zip
+#        asset_content_type: application/zip

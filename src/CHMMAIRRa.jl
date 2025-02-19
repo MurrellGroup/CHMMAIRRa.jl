@@ -2,11 +2,8 @@ module CHMMAIRRa
 
 using CHMMera, ArgParse, CSV, DataFrames, FASTX, Logging, Random, Requires
 
-# declare so we can override it in the extension
 include("utils.jl")
 include("plot.jl")
-
-
 
 function parse_commandline()
     s = ArgParseSettings()
