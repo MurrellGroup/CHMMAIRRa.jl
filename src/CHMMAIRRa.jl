@@ -1,6 +1,6 @@
 module CHMMAIRRa
 
-using CHMMera, ArgParse, CSV, DataFrames, FASTX, Logging, Random, Requires
+using CHMMera, ArgParse, CSV, DataFrames, Random
 
 include("utils.jl")
 include("plot.jl")
@@ -266,7 +266,7 @@ function detect_chimeras_from_files(V_fasta::String, assignments::String, out::S
 
         chunk_n = 1
         while true
-            @info "------------------------------ Processing chunk $(chunk_n) ------------------------------"
+            log_info("------------------------------ Processing chunk $(chunk_n) ------------------------------", quiet)
 
             assignments = get_next_chunk(assignments_iterator, col_inds, read_cols, chunk_size, REQUIRED_COLUMNS_TYPES)
 
@@ -329,7 +329,7 @@ function detect_chimeras_from_files(V_fasta::String, assignments::String, out::S
         isnothing(chimeric_s) ? nothing : close(chimeric_s)
         isnothing(chimeric_alignments_s) ? nothing : close(chimeric_alignments_s)
     end
-    @info "Done."
+    log_info("Done.", quiet)
     return chmmairra_output
 end
 
@@ -430,7 +430,7 @@ function detect_chimeras(refnames::Vector{String}, refseqs::Vector{String}, assi
 
     # align the database if the length of the sequences is not the same
     if align_database  | (length(unique(length.(refseqs))) != 1)
-        @info "Aligning V database sequences using mafft"
+        log_info("Aligning V database sequences using mafft", quiet)
         refnames, refseqs = mafft_wrapper(refseqs, refnames, mafft = mafft, threads = Base.Threads.nthreads())
     end
 
@@ -446,12 +446,12 @@ function detect_chimeras(refnames::Vector{String}, refseqs::Vector{String}, assi
     # check for missing values in required columns
     to_remove = ismissing.(assignments.v_call) .| ismissing.(assignments.v_sequence_alignment) .| ismissing.(assignments.v_germline_alignment)
     req_str = join(REQUIRED_COLUMNS, ", ")
-    @info "Removing $(sum(to_remove)) rows with missing values in required columns $(req_str)"
+    log_info("Removing $(sum(to_remove)) rows with missing values in required columns $(req_str)", quiet)
     assignments = assignments[.!to_remove,:]
 
     if deduplicate
         assignments = assignments[.!nonunique(assignments[!,["v_sequence_alignment"]]),:]
-        @info "Number of unique sequences after deduplication: $(size(assignments)[1])"
+        log_info("Number of unique sequences after deduplication: $(size(assignments)[1])", quiet)
     end
 
     if (! isnothing(subsample)) && (size(assignments)[1] > subsample)
@@ -465,7 +465,7 @@ function detect_chimeras(refnames::Vector{String}, refseqs::Vector{String}, assi
     refname2ind = Dict(zip(refnames,collect(eachindex(refnames))))
     ali_length = maximum(length.(refseqs))
     @assert length.(q2refs) == length.(queries)
-    @info "Threading alignment"
+    log_info("Threading alignment", quiet)
     threaded = thread_all(queries, q2refs, q2ref_names, refseqs, degapped_refs, refname2ind, ali_length);
 
     # for timing benchmarks, we don't want to deduplicate internally
@@ -477,12 +477,12 @@ function detect_chimeras(refnames::Vector{String}, refseqs::Vector{String}, assi
 
     # we only need to run once per value in threaded vector
     # the strategy is to run everything on unique threaded values, then leftjoin onto assignment table before writing to file
-    @info "Running forward algorithm to get chimerism probabilities"
+    log_info("Running forward algorithm to get chimerism probabilities", quiet)
     unique_chimera_probs = get_chimera_probabilities(unique_threaded, refseqs, bw = HMM_parameters["method"] == "BW", mutation_probabilities = HMM_parameters["mutation_probabilities"], base_mutation_probability = HMM_parameters["base_mutation_probability"], prior_probability = HMM_parameters["prior_probability"]);
     chimera_info = DataFrame(threaded = unique_threaded, chimera_probability = unique_chimera_probs)
     # collect additional information about the chimeras using viterbi
     if detailed | chimeric_alignments
-        @info "Running viterbi to get chimeric paths"
+        log_info("Running viterbi to get chimeric paths", quiet)
         recombination_information = get_recombination_events(unique_threaded, refseqs, bw = HMM_parameters["method"] == "BW", mutation_probabilities = HMM_parameters["mutation_probabilities"], base_mutation_probability = HMM_parameters["base_mutation_probability"], prior_probability = HMM_parameters["prior_probability"], detailed = true);
         # extract viterbi related information
         # columns to indicate the positions the recombinations occurred in
@@ -505,17 +505,17 @@ function detect_chimeras(refnames::Vector{String}, refseqs::Vector{String}, assi
         assignments = leftjoin(assignments, chimera_info, on = :threaded)
     end
 
-    @info "Number of chimeric sequences: $(sum(assignments.chimera_probability .> p_threshold)) ($(round(sum(assignments.chimera_probability .> p_threshold)/nrow(assignments) * 100, digits = 3))%)"
+    log_info("Number of chimeric sequences: $(sum(assignments.chimera_probability .> p_threshold)) ($(round(sum(assignments.chimera_probability .> p_threshold)/nrow(assignments) * 100, digits = 3))%)", quiet)
     assignments[!,"chimeric"] = assignments.chimera_probability .> p_threshold
     # find the number of times chimeric segments are seen in nonchimeric sequences
     # only works for single recombination chimeras
     if count_chimeric_segments
-        @info "Counting chimeric segments"
+        log_info("Counting chimeric segments", quiet)
         assignments = add_segment_count_columns(assignments, p_threshold, trim)
     end
 
     if chimeric_alignments
-        @info "Finding chimeric alignments"
+        log_info("Finding chimeric alignments", quiet)
         alignments = get_chimeric_alignments(assignments[assignments.chimera_probability .> p_threshold,:], refnames, refseqs)
         if length(alignments) > 0
             chimeric_alignments_obj = collect(Iterators.flatten(map(x -> x[1], alignments))), collect(Iterators.flatten(map(x -> x[2], alignments)))
@@ -549,9 +549,9 @@ function julia_main()::Cint
         disable_logging(LogLevel(10))
     end
 
-    @info "Parsed args:"
+    log_info("Parsed args:", quiet)
     for (arg,val) in parsed_args
-        @info "  $arg  =>  $val"
+        log_info("  $arg  =>  $val", quiet)
     end
 
     detect_chimeras_from_files(parsed_args["V-fasta"], parsed_args["assignments"], parsed_args["out"];

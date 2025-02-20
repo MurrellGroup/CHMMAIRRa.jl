@@ -239,14 +239,11 @@ end
 
 function write_fasta(filepath::String, sequences::Vector{String}; seq_names = nothing)
     if seq_names === nothing
-        seq_names = ["S$(i)" for i = 1:length(sequences)]
+        seq_names = ["$(i)" for i = 1:length(sequences)]
     end
-    writer = FASTX.FASTA.Writer(open(filepath, "w"))
-    for i = 1:length(seq_names)
-        rec = FASTX.FASTA.Record(seq_names[i], sequences[i])
-        write(writer, rec)
-    end
-    close(writer)
+    io = open(filepath, "w")
+    append_to_fasta(io, seq_names, sequences)
+    close(io)
 end
 
 function append_to_fasta(io, sequence_ids::Vector{String}, sequences::Vector{String})
@@ -339,8 +336,6 @@ function convert_column_types!(df::DataFrame, type_map::Dict{String, DataType})
     return df
 end
 
-
-#################### plotting pre-processing ####################
 function get_chimerism_per_recombination(CHMMAIRRa_out::DataFrame; top_n::Int = 10)
     function recombined_alleles_freqprod(recombs, allele2freq, default_freq)
         parsed_recombs = parse_recombinations_string(recombs)
@@ -381,4 +376,12 @@ function parse_recombination_string(recomb)
     recomb = recomb[2:end - 1]
     recomb_split = split(recomb, ", ")
     return (left_allele = recomb_split[1], right_allele = recomb_split[2], left_pos_degapped = parse(Int, recomb_split[3]), right_pos_degapped = parse(Int, recomb_split[4]))
+end
+
+
+#################### Simple logging functions ####################
+function log_info(msg::String, quiet::Bool = false)
+    if ! quiet
+        println(msg)
+    end
 end

@@ -7,6 +7,7 @@ makedocs(
     modules = [CHMMAIRRa],
     pages = [
         "Overview" => "index.md",
+        "Outputs" => "outputs.md",
         "API" => "api.md",
     ]
 )
@@ -14,5 +15,5 @@ makedocs(
 deploydocs(
     repo = "github.com/MurrellGroup/CHMMAIRRa.jl.git",
     devbranch = "main",
-    push_preview = true
+    push_preview = true,
 )

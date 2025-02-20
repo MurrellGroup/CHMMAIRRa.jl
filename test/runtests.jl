@@ -1,8 +1,6 @@
 using CHMMAIRRa, Test, DataFrames, CSV
 
 function compare_tsvs(file1::String, file2::String; columns::String = "all")
-    @info "Directory in compare_tsvs: $(pwd())"
-
     df1 = CSV.read(file1, DataFrame, delim = "\t")
     df2 = CSV.read(file2, DataFrame, delim = "\t")
     if columns == "intersection"

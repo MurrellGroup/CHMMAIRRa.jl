@@ -14,7 +14,7 @@ function wrap_text(str, width=50)
 end
 
 function plotsjl_plot_chimerism_per_recombination(chimeras_per_recombination::DataFrame; textwrap_width::Int=50, fontsize::Int=8)
-    @info "Plotting chimerism per recombination"
+    log_info("Plotting chimerism per recombination", quiet)
     wrapped_labels = [wrap_text(label, textwrap_width) for label in chimeras_per_recombination[!, "recombinations_degapped"]]
     num_newlines = sum([length(findall(x->x=='\n', label)) for label in wrapped_labels])
     m = maximum(chimeras_per_recombination.chimeras_normalized)
