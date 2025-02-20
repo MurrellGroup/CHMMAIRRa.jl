@@ -14,8 +14,8 @@ Chimera detection is performed using a Hidden Markov Model (HMM) that models seq
 The tool is primarily distributed as a an executable for Linux and MacOS from the [releases](https://github.com/MurrellGroup/CHMMAIRRa.jl/releases) page. Once you have downloaded the executable, you will need to unpack it and add it to your PATH to allow it to be run from any directory in the terminal.
 
 ```
-tar -xvf CHMMAIRRa.tar.gz # unpack the executable
-export PATH=$PATH:$(pwd)/CHMMAIRRa/bin/ # add the executable to your PATH
+unzip CHMMAIRRa_ubuntu-linux_x86-64_v0.0.1.zip # unpack the executable
+export PATH=$PATH:$(pwd)/CHMMAIRRa_ubuntu-linux_x86-64_v0.0.1/bin/ # add the executable to your PATH. Place this line in your ~/.bashrc or ~/.zshrc file to make it permanent.
 ```
 
 The tool is also available from the [Julia package manager](https://pkg.julialang.org/), and can be installed with the following command:
