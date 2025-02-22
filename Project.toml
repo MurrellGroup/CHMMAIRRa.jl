@@ -11,8 +11,13 @@ CodecZlib = "944b1d66-785c-5afd-91f1-9de20f533193"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 
-[weakdeps]
-Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
+[compat]
+julia = "1.8"
+ArgParse = "1.2"
+CHMMera = "0.1.2"
+CSV = "0.10"
+CodecZlib = "0.7"
+DataFrames = "1.7"
 
 [extensions]
 PlotExt = "Plots"
@@ -23,4 +28,5 @@ Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 [targets]
 test = ["Test"]
 
-
+[weakdeps]
+Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
