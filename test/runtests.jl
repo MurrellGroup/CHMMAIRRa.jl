@@ -66,7 +66,7 @@ end
 
         it, col_inds = CHMMAIRRa.setup_eachline_iterator("assignments.tsv", CHMMAIRRa.REQUIRED_COLUMNS)
         df = CHMMAIRRa.get_next_chunk(it, col_inds, CHMMAIRRa.REQUIRED_COLUMNS, 10, CHMMAIRRa.REQUIRED_COLUMNS_TYPES)
-        @test df == DataFrame(sequence_id = ["seq1", "seq2"], v_call = ["ref2", "ref2"], v_sequence_alignment = ["ACGTACACCAGGAT", "ACCACCACCAGT"], v_germline_alignment = ["ACCACCACCA--AT", "ACCACCACCAAT"])
+        @test df == DataFrame(sequence_id = ["seq1", "seq2", "seq3"], v_call = ["ref2", "ref2", "ref2"], v_sequence_alignment = ["ACGTACACCAGGAT", "ACCACCACCAGT", "ACCACCACCAAT"], v_germline_alignment = ["ACCACCACCA--AT", "ACCACCACCAAT", "ACCACCACCAAT"], v_identity = [64.285, 91.666, 100.0])
 
         aligned_names, aligned_seqs = CHMMAIRRa.mafft_wrapper(["ACGT", "CCCACGTGG"], ["ref1", "ref2"])
         @test aligned_names == ["ref1", "ref2"]

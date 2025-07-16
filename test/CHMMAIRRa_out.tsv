@@ -1,3 +1,4 @@
-sequence_id	threaded	chimera_probability	startingpoint	recombinations	recombinations_degapped	pathevaluation	chimeric	nrecombinations	segment_1_count	segment_2_count	hamming_distances
-seq1	ACGTACACCAAT	0.9921714864019425	ref1	(ref1, ref2, 6)	(ref1, ref2, 6, 6)	0.9919096063669561	true	1	1	1	0,0
-seq2	ACCACCACCAGT	0.0933303826917624	ref2			-Inf	false	0	-1	-1	
+sequence_id	v_DFR	threaded	chimera_probability	startingpoint	recombinations	recombinations_degapped	pathevaluation	chimeric	nrecombinations	segment_1_count	segment_2_count	hamming_distances
+seq1	5	ACGTACACCAAT	0.9921714864019425	ref1	(ref1, ref2, 6)	(ref1, ref2, 6, 6)	0.9919096063669561	true	1	2	2	0,0
+seq2	1	ACCACCACCAGT	0.0933303826917624	ref2			-Inf	false	0	-1	-1	
+seq3	0	ACCACCACCAAT	0.0	ref2			-Inf	false	0	-1	-1	

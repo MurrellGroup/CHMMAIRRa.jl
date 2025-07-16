@@ -8,10 +8,7 @@ include("plot.jl")
 function parse_commandline()
     s = ArgParseSettings()
     @add_arg_table s begin
-        "--p-threshold"
-            help = "Posterior threshold of switching templates."
-            arg_type = Float64
-            default = 0.95
+
 
         # output options
         "--non-chimeric-MiAIRR"
@@ -48,6 +45,14 @@ function parse_commandline()
             default = nothing
 
         # technical parameters
+        "--p-threshold"
+            help = "Posterior threshold of switching templates."
+            arg_type = Float64
+            default = 0.95
+        "--min-V-DFR"
+            help = "Minimum differences from reference (DFR) threshold to consider a V recombination event."
+            arg_type = Int
+            default = 1
         "--HMM-parameters"
             help = "If set, use HMM parameters in this file. Overrides parameter presets from --receptor. See src/IG_parameters.tsv or src/TCR_parameters.tsv for formatting."
             arg_type = String
@@ -103,13 +108,12 @@ function parse_commandline()
 end
 
 # Assignments with missing values in these AIRR columns will get thrown out
-REQUIRED_COLUMNS = ["sequence_id", "v_call", "v_sequence_alignment", "v_germline_alignment"]
-REQUIRED_COLUMNS_TYPES = Dict("sequence_id" => String, "v_call" => String, "v_sequence_alignment" => String, "v_germline_alignment" => String)
+REQUIRED_COLUMNS = ["sequence_id", "v_call", "v_sequence_alignment", "v_germline_alignment", "v_identity"]
+REQUIRED_COLUMNS_TYPES = Dict("sequence_id" => String, "v_call" => String, "v_sequence_alignment" => String, "v_germline_alignment" => String, "v_identity" => Float64)
 
 """
     detect_chimeras_from_files(V_fasta::String, assignments::String, out::String;
 
-            p_threshold::Float64 = 0.95,
             receptor::String = "IG",
 
             non_chimeric_MiAIRR::Union{String, Nothing} = nothing,
@@ -120,7 +124,9 @@ REQUIRED_COLUMNS_TYPES = Dict("sequence_id" => String, "v_call" => String, "v_se
             subsample::Union{Int, Nothing} = nothing,
             deduplicate::Bool = false,
             chunk_size::Union{Int, Nothing} = nothing,
-
+           
+            p_threshold::Float64 = 0.95,
+            min_V_DFR::Int = 1,
             HMM_parameters::Union{String, Nothing} = nothing,
             mafft::Union{String, Nothing} = nothing,
             align_database::Bool = false,
@@ -138,7 +144,6 @@ Run CHMMAIRRa from input files to writing of output files, taking care of I/O.
 - `assignments::String`: VDJ assignments, in MiAIRR format.
 - `out::String`: Write CHMMAIRRa output.
 # Optional arguments:
-- `p_threshold::Float64`: Posterior threshold of switching templates.
 - `receptor::String`: Which adaptive immune receptor to run on. Options: IG, TCR.
 - `non_chimeric_MiAIRR::Union{String, Nothing}`: Write assignments of sequences determined to be non-chimeric.
 - `chimeric_MiAIRR::Union{String, Nothing}`: Write assignments of sequences determined to be chimeric.
@@ -148,6 +153,8 @@ Run CHMMAIRRa from input files to writing of output files, taking care of I/O.
 - `subsample::Union{Int, Nothing}`: Randomly subsample this number of unique sequences to run chimera detection on.
 - `deduplicate::Bool`: Deduplicate input by v_sequence_alignment column. Note that if subsample is given, subsampling is performed after deduplication.
 - `chunk_size::Union{Int, Nothing}`: Read in chunk-size lines of input at a time, write output for that chunk, and move to the next chunk.
+- `p_threshold::Float64`: Posterior threshold of switching templates.
+- `min_V_DFR::Int`: Minimum differences from reference (DFR) threshold to consider a recombination event.
 - `HMM_parameters::Union{String, Nothing}`: If set, use HMM parameters in this file. Overrides parameter presets from --receptor. See src/IG_parameters.tsv or src/TCR_parameters.tsv for formatting.
 - `mafft::Union{String, Nothing}`: Path to MAFFT binary. If not provided, will try to find mafft in system PATH.
 - `align_database::Bool`: Whether to align database V sequences.
@@ -159,7 +166,6 @@ Run CHMMAIRRa from input files to writing of output files, taking care of I/O.
 """
 function detect_chimeras_from_files(V_fasta::String, assignments::String, out::String;
 
-            p_threshold::Float64 = 0.95,
             receptor::String = "IG",
 
             non_chimeric_MiAIRR::Union{String, Nothing} = nothing,
@@ -170,7 +176,9 @@ function detect_chimeras_from_files(V_fasta::String, assignments::String, out::S
             subsample::Union{Int, Nothing} = nothing,
             deduplicate::Bool = false,
             chunk_size::Union{Int, Nothing} = nothing,
-
+            
+            p_threshold::Float64 = 0.95,
+            min_V_DFR::Int = 1,
             HMM_parameters::Union{String, Nothing} = nothing,
             mafft::Union{String, Nothing} = nothing,
             align_database::Bool = false,
@@ -210,8 +218,9 @@ function detect_chimeras_from_files(V_fasta::String, assignments::String, out::S
     if isnothing(chunk_size)
         assignments = CSV.read(assignments, DataFrame, select=read_cols, types=REQUIRED_COLUMNS_TYPES, delim='\t')
         chmmairra_output = detect_chimeras(refnames, refseqs, assignments;
-                                                            HMM_parameters = HMM_parameters,
                                                             p_threshold = p_threshold,
+                                                            min_V_DFR = min_V_DFR,
+                                                            HMM_parameters = HMM_parameters,
                                                             receptor = receptor,
 
                                                             chimeric_alignments = ! isnothing(chimeric_alignments),
@@ -269,10 +278,16 @@ function detect_chimeras_from_files(V_fasta::String, assignments::String, out::S
             log_info("------------------------------ Processing chunk $(chunk_n) ------------------------------", quiet)
 
             assignments = get_next_chunk(assignments_iterator, col_inds, read_cols, chunk_size, REQUIRED_COLUMNS_TYPES)
+            
+            if size(assignments)[1] == 0 # covers scenario when the input file length is divisible by chunk-size
+                break
+            end
 
             chmmairra_output = detect_chimeras(refnames, refseqs, assignments;
-                                                                HMM_parameters = HMM_parameters,
                                                                 p_threshold = p_threshold,
+                                                                min_V_DFR = min_V_DFR,
+                                                                HMM_parameters = HMM_parameters,
+
                                                                 receptor = receptor,
 
                                                                 chimeric_alignments = ! isnothing(chimeric_alignments),
@@ -302,9 +317,7 @@ function detect_chimeras_from_files(V_fasta::String, assignments::String, out::S
                 CSV.write(out_s, chmmairra_output.out[[],write_cols], delim = '\t', append = false)
             end
 
-            if size(assignments)[1] == 0 # covers scenario when the input file length is divisible by chunk-size
-                break
-            end
+
 
             CSV.write(out_s, chmmairra_output.out[!,write_cols], delim = '\t', append = true)
 
@@ -335,8 +348,9 @@ end
 
 """
     detect_chimeras(refnames::Vector{String}, refseqs::Vector{String}, assignments::DataFrame;
-                    HMM_parameters::Union{Dict, Nothing} = nothing,
                     p_threshold::Float64 = 0.95,
+                    min_V_DFR::Int = 1,
+                    HMM_parameters::Union{Dict, Nothing} = nothing,
                     receptor::String = "IG",
 
                     chimeric_alignments::Bool = false,
@@ -344,6 +358,7 @@ end
                     detailed::Bool = false,
                     subsample::Union{Int, Nothing} = nothing,
                     deduplicate::Bool = false,
+
 
                     count_chimeric_segments::Bool = false,
                     trim::Int = 5,
@@ -374,8 +389,9 @@ Output tuple fields:
 - `refseqs::Vector{String}`: Sequences of the reference sequences.
 - `assignments::DataFrame`: VDJ assignments, in MiAIRR format.
 # Optional arguments:
-- `HMM_parameters::Union{Dict, Nothing}`: If set, use HMM parameters in this dictionary. Overrides parameter presets from receptor.
 - `p_threshold::Float64`: Posterior threshold of switching templates.
+- `min_V_DFR::Int`: Minimum differences from reference (DFR) threshold to consider a recombination event.
+- `HMM_parameters::Union{Dict, Nothing}`: If set, use HMM parameters in this dictionary. Overrides parameter presets from receptor.
 - `receptor::String`: Which adaptive immune receptor to run on. Options: IG, TCR.
 - `chimeric_alignments::Bool`: Whether to generate and return chimeric sequences and the germline alignments they matched to.
 - `recombfreqplot::Bool`: Whether to generate and return a plot of chimerism per recombination event.
@@ -391,8 +407,9 @@ Output tuple fields:
 - `disable_internal_dedup::Bool`: If set, does not deduplicate sequences internally. This was added for timing benchmark purposes and has no effect on the output.
 """
 function detect_chimeras(refnames::Vector{String}, refseqs::Vector{String}, assignments::DataFrame;
-                    HMM_parameters::Union{Dict, Nothing} = nothing,
                     p_threshold::Float64 = 0.95,
+                    min_V_DFR::Int = 1,
+                    HMM_parameters::Union{Dict, Nothing} = nothing,
                     receptor::String = "IG",
 
                     chimeric_alignments::Bool = false,
@@ -442,13 +459,15 @@ function detect_chimeras(refnames::Vector{String}, refseqs::Vector{String}, assi
     elseif isnothing(HMM_parameters)
         error(string("Invalid receptor ", receptor, ". Receptor must be either IG or TCR."))
     end
-
+    println("-----------")
+    println(assignments)
+    println("-----------")
     # check for missing values in required columns
     to_remove = ismissing.(assignments.v_call) .| ismissing.(assignments.v_sequence_alignment) .| ismissing.(assignments.v_germline_alignment)
     req_str = join(REQUIRED_COLUMNS, ", ")
     log_info("Removing $(sum(to_remove)) rows with missing values in required columns $(req_str)", quiet)
     assignments = assignments[.!to_remove,:]
-
+    
     if deduplicate
         assignments = assignments[.!nonunique(assignments[!,["v_sequence_alignment"]]),:]
         log_info("Number of unique sequences after deduplication: $(size(assignments)[1])", quiet)
@@ -458,9 +477,13 @@ function detect_chimeras(refnames::Vector{String}, refseqs::Vector{String}, assi
         assignments = assignments[shuffle(MersenneTwister(seed), 1:size(assignments)[1])[1:subsample],:]
     end
 
-    queries = uppercase.(assignments[!,"v_sequence_alignment"])
-    q2refs = uppercase.(assignments[!,"v_germline_alignment"])
-    q2ref_names = String.(map(x->split(x, ",")[1], assignments[!,"v_call"]))
+    add_v_DFR_column!(assignments)
+    above_v_DFR_threshold_mask = assignments.v_DFR .>= min_V_DFR
+    log_info("$(sum(.! above_v_DFR_threshold_mask)) sequences below DFR threshold $(min_V_DFR) will be assigned chimera probability 0.0", quiet)
+
+    queries = uppercase.(assignments[:,"v_sequence_alignment"])
+    q2refs = uppercase.(assignments[:,"v_germline_alignment"])
+    q2ref_names = String.(map(x->split(x, ",")[1], assignments[:,"v_call"]))
     degapped_refs = degap.(refseqs);
     refname2ind = Dict(zip(refnames,collect(eachindex(refnames))))
     ali_length = maximum(length.(refseqs))
@@ -468,17 +491,25 @@ function detect_chimeras(refnames::Vector{String}, refseqs::Vector{String}, assi
     log_info("Threading alignment", quiet)
     threaded = thread_all(queries, q2refs, q2ref_names, refseqs, degapped_refs, refname2ind, ali_length);
 
+    threaded_below_v_DFR_threshold = threaded[.! above_v_DFR_threshold_mask]
+    threaded_above_v_DFR_threshold = threaded[above_v_DFR_threshold_mask]
+
     # for timing benchmarks, we don't want to deduplicate internally
     if disable_internal_dedup
-        unique_threaded = threaded
+        unique_threaded = threaded_above_v_DFR_threshold
+        unique_threaded_below_v_DFR_threshold = threaded_below_v_DFR_threshold
     else
-        unique_threaded = unique(threaded)
+        unique_threaded = unique(threaded_above_v_DFR_threshold)
+        unique_threaded_below_v_DFR_threshold = unique(threaded_below_v_DFR_threshold)
     end
 
     # we only need to run once per value in threaded vector
     # the strategy is to run everything on unique threaded values, then leftjoin onto assignment table before writing to file
     log_info("Running forward algorithm to get chimerism probabilities", quiet)
     unique_chimera_probs = get_chimera_probabilities(unique_threaded, refseqs, bw = HMM_parameters["method"] == "BW", mutation_probabilities = HMM_parameters["mutation_probabilities"], base_mutation_probability = HMM_parameters["base_mutation_probability"], prior_probability = HMM_parameters["prior_probability"]);
+    # Add back sequences below DFR threshold with 0.0 probability
+    unique_chimera_probs = vcat(unique_chimera_probs, zeros(length(unique_threaded_below_v_DFR_threshold)))
+    unique_threaded = vcat(unique_threaded, unique_threaded_below_v_DFR_threshold)
     chimera_info = DataFrame(threaded = unique_threaded, chimera_probability = unique_chimera_probs)
     # collect additional information about the chimeras using viterbi
     if detailed | chimeric_alignments
@@ -555,8 +586,6 @@ function julia_main()::Cint
     end
 
     detect_chimeras_from_files(parsed_args["V-fasta"], parsed_args["assignments"], parsed_args["out"];
-
-            p_threshold = parsed_args["p-threshold"],
             receptor = parsed_args["receptor"],
 
             non_chimeric_MiAIRR = parsed_args["non-chimeric-MiAIRR"],
@@ -568,6 +597,8 @@ function julia_main()::Cint
             deduplicate = parsed_args["deduplicate"],
             chunk_size = parsed_args["chunk-size"],
 
+            p_threshold = parsed_args["p-threshold"],
+            min_V_DFR = parsed_args["min-V-DFR"],
             HMM_parameters = parsed_args["HMM-parameters"],
             mafft = parsed_args["mafft"],
             align_database = parsed_args["align-database"],
