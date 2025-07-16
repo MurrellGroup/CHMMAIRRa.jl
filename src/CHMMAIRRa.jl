@@ -459,9 +459,7 @@ function detect_chimeras(refnames::Vector{String}, refseqs::Vector{String}, assi
     elseif isnothing(HMM_parameters)
         error(string("Invalid receptor ", receptor, ". Receptor must be either IG or TCR."))
     end
-    println("-----------")
-    println(assignments)
-    println("-----------")
+
     # check for missing values in required columns
     to_remove = ismissing.(assignments.v_call) .| ismissing.(assignments.v_sequence_alignment) .| ismissing.(assignments.v_germline_alignment)
     req_str = join(REQUIRED_COLUMNS, ", ")
