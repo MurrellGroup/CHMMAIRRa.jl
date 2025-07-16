@@ -44,6 +44,11 @@ function thread_all(queries::Vector{String},q2refs::Vector{String},q2ref_names::
     return threaded
 end
 
+function add_v_DFR_column!(assignments::DataFrame)::DataFrame
+    assignments[!,"v_DFR"] .= length.(assignments.v_germline_alignment) .- Int.(round.(assignments.v_identity ./ 100 .* length.(assignments.v_germline_alignment)))
+    return assignments
+end
+
 function count_segment_1(segment_1::String, threaded::Vector{String}, n::Vector{Int64})::Int64 return sum(n[startswith.(threaded, segment_1)]) end
 function count_segment_2(segment_2::String, threaded::Vector{String}, n::Vector{Int64})::Int64 return sum(n[endswith.(threaded, segment_2)]) end
 
@@ -320,13 +325,26 @@ end
 function convert_column_types!(df::DataFrame, type_map::Dict{String, DataType})
     for (col, new_type) in type_map
         if hasproperty(df, col)
-            if eltype(df[!,col]) != new_type
-                if new_type <: AbstractString
-                    df[!, col] = String.(df[!, col])
-                elseif (new_type <: Integer) | (new_type <: AbstractFloat)
-                    df[!, col] = convert.(new_type, df[!, col])
-                else
-                    @warn "We weren't sure how to convert $col to $new_type"
+            old_type = eltype(df[!,col])
+            if old_type != new_type
+                try
+                    # First try direct conversion (handles numeric type conversions like Int -> Float64)
+                    df[!, col] = convert.(Vector{new_type}, df[!, col])
+                catch e1
+                    try
+                        # If direct conversion fails, try parsing (handles String -> numeric conversions)
+                        if new_type <: AbstractString
+                            df[!, col] = String.(df[!, col])
+                        elseif (new_type <: Number) && (old_type <: AbstractString || old_type == String)
+                            df[!, col] = parse.(new_type, df[!, col])
+                        else
+                            # For other cases, try element-wise conversion
+                            df[!, col] = [convert(new_type, x) for x in df[!, col]]
+                        end
+                    catch e2
+                        @warn "Failed to convert column $col from $old_type to $new_type. Error 1: $e1, Error 2: $e2"
+                        # Keep the original column unchanged
+                    end
                 end
             end
         else
@@ -385,3 +403,5 @@ function log_info(msg::String, quiet::Bool = false)
         println(msg)
     end
 end
+
+
