@@ -45,7 +45,7 @@ function thread_all(queries::Vector{String},q2refs::Vector{String},q2ref_names::
 end
 
 function add_v_DFR_column!(assignments::DataFrame)::DataFrame
-    assignments[!,"v_DFR"] .= length.(assignments.v_germline_alignment) .- Int.(round.(assignments.v_identity ./ 100 .* length.(assignments.v_germline_alignment)))
+    assignments[!,"v_DFR"] .= sum.([[v_g != v_s for (v_g, v_s) in zip(v_germline_alignment, v_sequence_alignment)] for (v_germline_alignment, v_sequence_alignment) in zip(assignments.v_germline_alignment, assignments.v_sequence_alignment)])
     return assignments
 end
 

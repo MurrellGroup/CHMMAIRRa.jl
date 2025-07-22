@@ -108,8 +108,8 @@ function parse_commandline()
 end
 
 # Assignments with missing values in these AIRR columns will get thrown out
-REQUIRED_COLUMNS = ["sequence_id", "v_call", "v_sequence_alignment", "v_germline_alignment", "v_identity"]
-REQUIRED_COLUMNS_TYPES = Dict("sequence_id" => String, "v_call" => String, "v_sequence_alignment" => String, "v_germline_alignment" => String, "v_identity" => Float64)
+REQUIRED_COLUMNS = ["sequence_id", "v_call", "v_sequence_alignment", "v_germline_alignment"]
+REQUIRED_COLUMNS_TYPES = Dict("sequence_id" => String, "v_call" => String, "v_sequence_alignment" => String, "v_germline_alignment" => String)
 
 """
     detect_chimeras_from_files(V_fasta::String, assignments::String, out::String;
@@ -475,13 +475,21 @@ function detect_chimeras(refnames::Vector{String}, refseqs::Vector{String}, assi
         assignments = assignments[shuffle(MersenneTwister(seed), 1:size(assignments)[1])[1:subsample],:]
     end
 
-    add_v_DFR_column!(assignments)
-    above_v_DFR_threshold_mask = assignments.v_DFR .>= min_V_DFR
+    # for timing benchmarks, we don't want to deduplicate internally
+    if disable_internal_dedup
+        unique_assignments = copy(assignments[!,[:v_sequence_alignment, :v_germline_alignment, :v_call]])
+    else
+        unique_assignments = unique(assignments, [:v_sequence_alignment, :v_germline_alignment, :v_call])[!,[:v_sequence_alignment, :v_germline_alignment, :v_call]]
+        log_info("Number sequences before and after internal deduplication: $(nrow(assignments)) -> $(nrow(unique_assignments))", quiet)
+    end
+
+    add_v_DFR_column!(unique_assignments)
+    above_v_DFR_threshold_mask = unique_assignments.v_DFR .>= min_V_DFR
     log_info("$(sum(.! above_v_DFR_threshold_mask)) sequences below DFR threshold $(min_V_DFR) will be assigned chimera probability 0.0", quiet)
 
-    queries = uppercase.(assignments[:,"v_sequence_alignment"])
-    q2refs = uppercase.(assignments[:,"v_germline_alignment"])
-    q2ref_names = String.(map(x->split(x, ",")[1], assignments[:,"v_call"]))
+    queries = uppercase.(unique_assignments[:,"v_sequence_alignment"])
+    q2refs = uppercase.(unique_assignments[:,"v_germline_alignment"])
+    q2ref_names = String.(map(x->split(x, ",")[1], unique_assignments[:,"v_call"]))
     degapped_refs = degap.(refseqs);
     refname2ind = Dict(zip(refnames,collect(eachindex(refnames))))
     ali_length = maximum(length.(refseqs))
@@ -489,30 +497,19 @@ function detect_chimeras(refnames::Vector{String}, refseqs::Vector{String}, assi
     log_info("Threading alignment", quiet)
     threaded = thread_all(queries, q2refs, q2ref_names, refseqs, degapped_refs, refname2ind, ali_length);
 
-    threaded_below_v_DFR_threshold = threaded[.! above_v_DFR_threshold_mask]
     threaded_above_v_DFR_threshold = threaded[above_v_DFR_threshold_mask]
-
-    # for timing benchmarks, we don't want to deduplicate internally
-    if disable_internal_dedup
-        unique_threaded = threaded_above_v_DFR_threshold
-        unique_threaded_below_v_DFR_threshold = threaded_below_v_DFR_threshold
-    else
-        unique_threaded = unique(threaded_above_v_DFR_threshold)
-        unique_threaded_below_v_DFR_threshold = unique(threaded_below_v_DFR_threshold)
-    end
-
     # we only need to run once per value in threaded vector
     # the strategy is to run everything on unique threaded values, then leftjoin onto assignment table before writing to file
     log_info("Running forward algorithm to get chimerism probabilities", quiet)
-    unique_chimera_probs = get_chimera_probabilities(unique_threaded, refseqs, bw = HMM_parameters["method"] == "BW", mutation_probabilities = HMM_parameters["mutation_probabilities"], base_mutation_probability = HMM_parameters["base_mutation_probability"], prior_probability = HMM_parameters["prior_probability"]);
-    # Add back sequences below DFR threshold with 0.0 probability
-    unique_chimera_probs = vcat(unique_chimera_probs, zeros(length(unique_threaded_below_v_DFR_threshold)))
-    unique_threaded = vcat(unique_threaded, unique_threaded_below_v_DFR_threshold)
-    chimera_info = DataFrame(threaded = unique_threaded, chimera_probability = unique_chimera_probs)
+    chimera_probs = get_chimera_probabilities(threaded_above_v_DFR_threshold, refseqs, bw = HMM_parameters["method"] == "BW", mutation_probabilities = HMM_parameters["mutation_probabilities"], base_mutation_probability = HMM_parameters["base_mutation_probability"], prior_probability = HMM_parameters["prior_probability"]);
+    # Add threaded sequences and assign chimera probabilities based on DFR threshold
+    unique_assignments[!,"threaded"] = threaded
+    unique_assignments[!,"chimera_probability"] = zeros(Float64, nrow(unique_assignments))
+    unique_assignments[above_v_DFR_threshold_mask,"chimera_probability"] = chimera_probs
     # collect additional information about the chimeras using viterbi
     if detailed | chimeric_alignments
         log_info("Running viterbi to get chimeric paths", quiet)
-        recombination_information = get_recombination_events(unique_threaded, refseqs, bw = HMM_parameters["method"] == "BW", mutation_probabilities = HMM_parameters["mutation_probabilities"], base_mutation_probability = HMM_parameters["base_mutation_probability"], prior_probability = HMM_parameters["prior_probability"], detailed = true);
+        recombination_information = get_recombination_events(unique_assignments[!,"threaded"], refseqs, bw = HMM_parameters["method"] == "BW", mutation_probabilities = HMM_parameters["mutation_probabilities"], base_mutation_probability = HMM_parameters["base_mutation_probability"], prior_probability = HMM_parameters["prior_probability"], detailed = true);
         # extract viterbi related information
         # columns to indicate the positions the recombinations occurred in
         chimeric_recombination_vecs = map(el->el.recombinations, recombination_information)
@@ -521,21 +518,19 @@ function detect_chimeras(refnames::Vector{String}, refseqs::Vector{String}, assi
         # starting point in the viterbi path - also serves as a CHMMera allele "assignment"
         unique_starting_points = map(el->refnames[el.startingpoint], recombination_information)
         unique_pathevaluations = map(el->el.pathevaluation, recombination_information)
-        chimera_info = hcat(chimera_info, DataFrame(startingpoint = unique_starting_points, recombinations = chimeric_recombinations, recombinations_degapped = chimeric_recombinations_degapped, pathevaluation = unique_pathevaluations))
+        unique_assignments = hcat(unique_assignments, DataFrame(startingpoint = unique_starting_points, recombinations = chimeric_recombinations, recombinations_degapped = chimeric_recombinations_degapped, pathevaluation = unique_pathevaluations))
     end
-
-    # map chimera information back onto original sequences
-    assignments[!,"threaded"] = threaded
 
     # for timing benchmarks, we don't want to deduplicate internally
     if disable_internal_dedup
-        assignments = hcat(assignments, chimera_info[:,setdiff(names(chimera_info), names(assignments))])
+        assignments = hcat(assignments, unique_assignments[:,setdiff(names(unique_assignments), names(assignments))])
     else
-        assignments = leftjoin(assignments, chimera_info, on = :threaded)
+        assignments = leftjoin(assignments, unique_assignments, on = [:v_sequence_alignment, :v_germline_alignment, :v_call])
     end
 
-    log_info("Number of chimeric sequences: $(sum(assignments.chimera_probability .> p_threshold)) ($(round(sum(assignments.chimera_probability .> p_threshold)/nrow(assignments) * 100, digits = 3))%)", quiet)
     assignments[!,"chimeric"] = assignments.chimera_probability .> p_threshold
+    log_info("Number of chimeric sequences: $(sum(assignments.chimeric)) ($(round(sum(assignments.chimera_probability .> p_threshold)/nrow(assignments) * 100, digits = 3))%)", quiet)
+    log_info("Total rows $(nrow(assignments))", quiet)
     # find the number of times chimeric segments are seen in nonchimeric sequences
     # only works for single recombination chimeras
     if count_chimeric_segments
