@@ -11,6 +11,7 @@ function thread_seq(v_sequence_alignment::AbstractString,
     degapped_refs::Vector{String},
     refname2ind::Dict{String, Int64},
     ali_length::Int)::String
+
     dg = degap(v_germline_alignment)
     gapped_full_ref = refseqs[refname2ind[v_call]]
     # Because igblast gives a local alignment, sometimes missing ends:
@@ -44,15 +45,27 @@ function thread_all(queries::Vector{String},q2refs::Vector{String},q2ref_names::
     return threaded
 end
 
-function add_v_DFR_column!(assignments::DataFrame)::DataFrame
-    assignments[!,"v_DFR"] .= length.(assignments.v_germline_alignment) .- Int.(round.(assignments.v_identity ./ 100 .* length.(assignments.v_germline_alignment)))
+function get_threaded(assignments::DataFrame, refnames::Vector{String}, refseqs::Vector{String}; gene::Char = 'v', quiet::Bool = false)::Vector
+    queries = uppercase.(assignments[:,"$(gene)_sequence_alignment"])
+    q2refs = uppercase.(assignments[:,"$(gene)_germline_alignment"])
+    q2ref_names = String.(map(x->split(x, ",")[1], assignments[:,"$(gene)_call"]))
+    degapped_refs = degap.(refseqs);
+    refname2ind = Dict(zip(refnames,collect(eachindex(refnames))))
+    ali_length = maximum(length.(refseqs))
+    @assert length.(q2refs) == length.(queries)
+    threaded = thread_all(queries, q2refs, q2ref_names, refseqs, degapped_refs, refname2ind, ali_length);
+    return threaded
+end
+
+function add_DFR_column!(assignments::DataFrame, gene::Char)::DataFrame
+    assignments[!,"$(gene)_DFR"] .= sum.([[g != s for (g, s) in zip(germline_alignment, sequence_alignment)] for (germline_alignment, sequence_alignment) in zip(assignments[!,"$(gene)_germline_alignment"], assignments[!,"$(gene)_sequence_alignment"])])
     return assignments
 end
 
 function count_segment_1(segment_1::String, threaded::Vector{String}, n::Vector{Int64})::Int64 return sum(n[startswith.(threaded, segment_1)]) end
 function count_segment_2(segment_2::String, threaded::Vector{String}, n::Vector{Int64})::Int64 return sum(n[endswith.(threaded, segment_2)]) end
 
-function add_segment_count_columns(assignments::DataFrame, p_threshold::Float64, trim::Int64)::DataFrame
+function add_segment_count_columns(assignments::DataFrame, p_threshold::Float64, trim::Int64, gene::Char)::DataFrame
     # for each chimeric assignment, determine how many rows in the nonchimeric assignments contains chimeric segments 1 (left) and 2 (right)
     # add the counts to segment_1_count and segment_2_count columns
     # only works with single recombination chimeras in order to maintain simple substring search and avoid expensive operations.
@@ -63,15 +76,15 @@ function add_segment_count_columns(assignments::DataFrame, p_threshold::Float64,
     end
 
     # only use single recombination chimeras
-    assignments[!,"nrecombinations"] = map(el-> (ismissing(el)) | (el == "") ? 0 : count(x->x==';', el) + 1, assignments.recombinations)
-    single_recomb_selector = assignments.nrecombinations .== 1
-    parsed_recombinations = parse_recombinations.(assignments[single_recomb_selector,"recombinations"])
+    assignments[!,"$(gene)_nrecombinations"] = map(el-> (ismissing(el)) | (el == "") ? 0 : count(x->x==';', el) + 1, assignments[!,"$(gene)_recombinations"])
+    single_recomb_selector = assignments[!,"$(gene)_nrecombinations"] .== 1
+    parsed_recombinations = parse_recombinations.(assignments[single_recomb_selector,"$(gene)_recombinations"])
 
     # get chimeric and nonchimeric threaded arrays to look for segments
-    threaded_ct = combine(groupby(assignments[assignments.chimera_probability .<= p_threshold,:], :threaded), nrow => :n)
-    nonchimeric_threaded = [el[1:end - trim] for el in threaded_ct.threaded]
+    threaded_ct = combine(groupby(assignments[assignments[!,"$(gene)_chimera_probability"] .<= p_threshold,:], "$(gene)_threaded"), nrow => :n)
+    nonchimeric_threaded = [el[1:end - trim] for el in threaded_ct[!,"$(gene)_threaded"]]
     nonchimeric_n = threaded_ct.n
-    chimeric_threaded = assignments[single_recomb_selector,:].threaded
+    chimeric_threaded = assignments[single_recomb_selector,:][!,"$(gene)_threaded"]
 
     # extract left and right segments
     segment_1s = [threaded[1:recombination[3] - trim] for (threaded, recombination) in zip(chimeric_threaded, parsed_recombinations)]
@@ -89,10 +102,10 @@ function add_segment_count_columns(assignments::DataFrame, p_threshold::Float64,
     end
 
     # add to chimeric_assignments dataframe
-    assignments[!,"segment_1_count"] .= fill(-1, nrow(assignments))
-    assignments[!,"segment_2_count"] .= fill(-1, nrow(assignments))
-    assignments[single_recomb_selector,"segment_1_count"] .= segment_1_cts
-    assignments[single_recomb_selector,"segment_2_count"] .= segment_2_cts
+    assignments[!,"$(gene)_segment_1_count"] .= fill(-1, nrow(assignments))
+    assignments[!,"$(gene)_segment_2_count"] .= fill(-1, nrow(assignments))
+    assignments[single_recomb_selector,"$(gene)_segment_1_count"] .= segment_1_cts
+    assignments[single_recomb_selector,"$(gene)_segment_2_count"] .= segment_2_cts
     return assignments
 end
 
@@ -151,10 +164,10 @@ function parse_recombs_str(recombs_str::String)
     return recombs_arr
 end
 
-function get_chimeric_alignments(chimeric_assignments::DataFrame, refnames::Vector{String}, refseqs::Vector{String})
+function get_chimeric_alignments(chimeric_assignments::DataFrame, refnames::Vector{String}, refseqs::Vector{String}, gene::Char)
     query_names = chimeric_assignments.sequence_id
-    chimeric_threaded = chimeric_assignments.threaded
-    chimeric_recombs = parse_recombs_str.(chimeric_assignments.recombinations)
+    chimeric_threaded = chimeric_assignments[!,"$(gene)_threaded"]
+    chimeric_recombs = parse_recombs_str.(chimeric_assignments[!,"$(gene)_recombinations"])
     chimeric_alignments = Vector(undef, nrow(chimeric_assignments))
     Threads.@threads for i in 1:nrow(chimeric_assignments)
         chimeric_alignments[i] = get_chimeric_alignment(query_names[i], chimeric_threaded[i], refnames, refseqs, chimeric_recombs[i])
@@ -239,6 +252,7 @@ function read_fasta(file_path::String)
     end
 
     close(io)
+    @assert length(sequence_ids) == length(sequences)
     return sequence_ids, sequences
 end
 
@@ -354,12 +368,12 @@ function convert_column_types!(df::DataFrame, type_map::Dict{String, DataType})
     return df
 end
 
-function get_chimerism_per_recombination(CHMMAIRRa_out::DataFrame; top_n::Int = 10)
+function get_chimerism_per_recombination(CHMMAIRRa_out::DataFrame, gene::Char; top_n::Int = 10)
     function recombined_alleles_freqprod(recombs, allele2freq, default_freq)
         parsed_recombs = parse_recombinations_string(recombs)
-        p = get(allele2freq, parsed_recombs[1].left_allele, default_freq)
+        p = get(allele2freq, getfield(parsed_recombs[1], Symbol("left_allele")), default_freq)
         for el in parsed_recombs
-            p *= get(allele2freq, parsed_recombs[1].right_allele, default_freq)
+            p *= get(allele2freq, getfield(parsed_recombs[1], Symbol("right_allele")), default_freq)
         end
         return p
     end
@@ -370,17 +384,15 @@ function get_chimerism_per_recombination(CHMMAIRRa_out::DataFrame; top_n::Int = 
         return cts
     end
 
-    allele_freqs = get_frequencies(CHMMAIRRa_out, "v_call")
+    allele_freqs = get_frequencies(CHMMAIRRa_out, "$(gene)_call")
     median_freq = sort(allele_freqs[!, "frequency"])[maximum([floor(Int, nrow(allele_freqs) / 2), 1])]
-    allele2freq = Dict(allele_freqs[!, "v_call"] => allele_freqs[!, "frequency"])
-    chimeras_by_allele = get_frequencies(CHMMAIRRa_out[(.! ismissing.(CHMMAIRRa_out.recombinations_degapped)) .& (CHMMAIRRa_out.recombinations_degapped .!= ""),:], "recombinations_degapped")
+    allele2freq = Dict(allele_freqs[!, "$(gene)_call"] => allele_freqs[!, "frequency"])
+    chimeras_by_allele = get_frequencies(CHMMAIRRa_out[(.! ismissing.(CHMMAIRRa_out[!,"$(gene)_recombinations_degapped"])) .& (CHMMAIRRa_out[!,"$(gene)_recombinations_degapped"] .!= ""),:], "$(gene)_recombinations_degapped")
 
     sort!(chimeras_by_allele, :n, rev = true)
     chimeras_by_allele = chimeras_by_allele[1:minimum([top_n, nrow(chimeras_by_allele)]),:]
 
-
-
-    chimeras_by_allele[!,"recombined_alleles_freqprod"] = [recombined_alleles_freqprod(recombs, allele2freq, median_freq) for recombs in chimeras_by_allele[!, "recombinations_degapped"]]
+    chimeras_by_allele[!,"recombined_alleles_freqprod"] = [recombined_alleles_freqprod(recombs, allele2freq, median_freq) for recombs in chimeras_by_allele[!, "$(gene)_recombinations_degapped"]]
     chimeras_by_allele[!,"chimeras_normalized"] .= chimeras_by_allele.n ./ chimeras_by_allele[!,"recombined_alleles_freqprod"]
     sort!(chimeras_by_allele, :chimeras_normalized, rev = true)
     return chimeras_by_allele

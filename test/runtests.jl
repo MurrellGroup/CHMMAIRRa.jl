@@ -66,7 +66,11 @@ end
 
         it, col_inds = CHMMAIRRa.setup_eachline_iterator("assignments.tsv", CHMMAIRRa.REQUIRED_COLUMNS)
         df = CHMMAIRRa.get_next_chunk(it, col_inds, CHMMAIRRa.REQUIRED_COLUMNS, 10, CHMMAIRRa.REQUIRED_COLUMNS_TYPES)
-        @test df == DataFrame(sequence_id = ["seq1", "seq2", "seq3"], v_call = ["ref2", "ref2", "ref2"], v_sequence_alignment = ["ACGTACACCAGGAT", "ACCACCACCAGT", "ACCACCACCAAT"], v_germline_alignment = ["ACCACCACCA--AT", "ACCACCACCAAT", "ACCACCACCAAT"], v_identity = [64.285, 91.666, 100.0])
+
+        @test df == DataFrame(sequence_id = ["seq1", "seq2", "seq3"], 
+                            v_call = ["ref2", "ref2", "ref2"], 
+                            v_sequence_alignment = ["ACGTACACCAGGAT", "ACCACCACCAGT", "ACCACCACCAAT"], 
+                            v_germline_alignment = ["ACCACCACCA--AT", "ACCACCACCAAT", "ACCACCACCAAT"])
 
         aligned_names, aligned_seqs = CHMMAIRRa.mafft_wrapper(["ACGT", "CCCACGTGG"], ["ref1", "ref2"])
         @test aligned_names == ["ref1", "ref2"]
@@ -79,6 +83,7 @@ end
 
     @testset "CHMMAIRRa.jl" begin
         CHMMAIRRa_out = CHMMAIRRa.detect_chimeras_from_files("V.fasta", "assignments.tsv", "CHMMAIRRa_out_temp.tsv",
+                                    J_fasta = "J.fasta",
                                     non_chimeric_MiAIRR = "non_chimeric_airr_temp.tsv",
                                     chimeric_MiAIRR = "chimeric_airr_temp.tsv",
                                     chimeric_alignments = "chimeric_alignments_temp.fasta",
@@ -94,5 +99,11 @@ end
                                     chunk_size = 1)
         # count_chimeric_segments doesn't work with chunk_size, so we compare the columns in common between the files
         compare_tsvs("CHMMAIRRa_out_temp.tsv", "CHMMAIRRa_out.tsv", columns = "intersection")
+    end
+
+    @testset "plot.jl" begin
+        df = DataFrame(chimeras_normalized = [1, 1, 1, 5, 5, 5, 90, 90, 90, 100, 100, 100], v_recombinations_degapped = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"], n = [1, 2, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3])
+        p = CHMMAIRRa.plot_chimerism_per_recombination(df, 'v')
+        @test p isa Vector{Vector{Char}}
     end
 end

@@ -1,19 +1,22 @@
 ### Output columns
 #### Mandatory columns
-- ```threaded``` : The query V sequence threaded onto the database alignment.
-- ```chimera_probability``` : The probability of the V sequence being a chimera.
-- ```chimeric``` : Whether ```chimera_probability``` is greater than the threshold.
+- ```v_threaded``` : The query V sequence threaded onto the database alignment.
+- ```v_chimera_probability``` : The probability of the V sequence being a chimera.
+- ```v_chimeric``` : Whether ```v_chimera_probability``` is greater than the threshold.
+- ```chimeric``` : If ```j_chimeric``` exists, it's ```v_chimeric | j_chimeric```. If ```j_chimeric``` doesn't exist, ```chimeric``` = ```v_chimeric``` 
 
 #### Optional columns generated when using the ```--detailed``` arg
-- ```startingpoint``` : The nonchimeric starting state of the viterbi path (i.e. the HMM's v_call).
-- ```recombinations``` : A list of recombination points according to the viterbi path of the query. Format: (v_call 1, v_call 2, recombination position in threaded query sequence).
-- ```recombinations_degapped``` : Same as recombinations, but with the non-gapped position of the recombination.
-- ```pathevaluation``` : The probability of the second likeliest reference in the HMM. This gives us a measure of confidence for the recombination path itself.
-- ```nrecombinations``` : The number of recombination points in the viterbi path.
+- ```v_startingpoint``` : The nonchimeric starting state of the viterbi path (i.e. the HMM's v_call).
+- ```v_recombinations``` : A list of recombination points according to the viterbi path of the query. Format: (v_call 1, v_call 2, recombination position in threaded query sequence).
+- ```v_recombinations_degapped``` : Same as recombinations, but with the non-gapped position of the recombination.
+- ```v_pathevaluation``` : The probability of the second likeliest reference in the HMM. This gives us a measure of confidence for the recombination path itself.
+- ```v_nrecombinations``` : The number of recombination points in the viterbi path.
 
 #### Optional outputs generated when using the ```--count-chimeric-segments``` arg
-- ```segment_1_count``` : The number of times the left chimeric segment appears in nonchimeric sequences.
-- ```segment_2_count``` : The number of times the right chimeric segment appears in nonchimeric sequences.
+- ```v_segment_1_count``` : The number of times the left chimeric segment appears in nonchimeric sequences.
+- ```v_segment_2_count``` : The number of times the right chimeric segment appears in nonchimeric sequences.
+
+The same columns, with the prefix ```j_``` instead of ```v_``` will be produced if the ```J_fasta``` argument is provided.
 
 ### Chimeric alignments
 
