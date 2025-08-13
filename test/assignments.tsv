@@ -1,4 +1,4 @@
-sequence_id	v_call	v_sequence_alignment	v_germline_alignment	v_identity
-seq1	ref2	ACGTACACCAGGAT	ACCACCACCA--AT	64.285
-seq2	ref2	ACCACCACCAGT	ACCACCACCAAT	91.666
-seq3	ref2	ACCACCACCAAT	ACCACCACCAAT	100.0
+sequence_id	v_call	v_sequence_alignment	v_germline_alignment	j_call	j_sequence_alignment	j_germline_alignment
+seq1	ref2	ACGTACACCAGGAT	ACCACCACCA--AT	ref2	ACGTACACCAGGAT	ACCACCACCA--AT
+seq2	ref2	ACCACCACCAGT	ACCACCACCAAT	ref2	ACCACCACCAGT	ACCACCACCAAT
+seq3	ref2	ACCACCACCAAT	ACCACCACCAAT	ref2	ACCACCACCAAT	ACCACCACCAAT

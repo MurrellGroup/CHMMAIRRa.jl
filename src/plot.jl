@@ -25,18 +25,18 @@ function write_recombfreqplot(plot::Vector{Vector{Char}}, out::String)
     end
 end
 
-function plot_chimerism_per_recombination(chimeras_per_recombination::DataFrame)
-    if isdefined(Base, :get_extension) && Base.get_extension(CHMMAIRRa, :PlotExt) !== nothing
+function plot_chimerism_per_recombination(chimeras_per_recombination::DataFrame, gene::Char)
+    if isdefined(Base, :get_extension) && (Base.get_extension(CHMMAIRRa, :PlotExt) !== nothing)
         return Base.get_extension(CHMMAIRRa, :PlotExt).plotsjl_plot_chimerism_per_recombination(chimeras_per_recombination)
     else
-        return unicode_plot_chimerism_per_recombination(chimeras_per_recombination)
+        return unicode_plot_chimerism_per_recombination(chimeras_per_recombination, gene)
     end
 end
 
-function unicode_plot_chimerism_per_recombination(chimeras_per_recombination::DataFrame)
-    xvalues = Vector{Float64}(chimeras_per_recombination.chimeras_normalized)
-    ylabels = Vector{String}(chimeras_per_recombination.recombinations_degapped)
-    counts = Vector{Int}(chimeras_per_recombination.n)
+function unicode_plot_chimerism_per_recombination(chimeras_per_recombination::DataFrame, gene::Char)
+    xvalues = Vector{Float64}(chimeras_per_recombination[!, "chimeras_normalized"])
+    ylabels = Vector{String}(chimeras_per_recombination[!, "$(gene)_recombinations_degapped"])
+    counts = Vector{Int}(chimeras_per_recombination[!, "n"])
     return unicode_barplot(xvalues, ylabels, counts)
 end
 
