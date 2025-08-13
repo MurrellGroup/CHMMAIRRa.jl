@@ -758,13 +758,9 @@ Entry point C call for main function for Julia
 function julia_main()::Cint
     parsed_args = parse_commandline()
 
-    if parsed_args["quiet"]
-        disable_logging(LogLevel(10))
-    end
-
-    log_info("Parsed args:", quiet)
+    log_info("Parsed args:", parsed_args["quiet"])
     for (arg,val) in parsed_args
-        log_info("  $arg  =>  $val", quiet)
+        log_info("  $arg  =>  $val", parsed_args["quiet"])
     end
 
     detect_chimeras_from_files(parsed_args["V-fasta"], parsed_args["assignments"], parsed_args["out"];
